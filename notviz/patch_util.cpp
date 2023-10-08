@@ -24,7 +24,7 @@ void patch_call(void* target, void* func) {
         auto search = (char*)GetModuleHandle(NULL) + 0xD0000;
         while (!g_near_mem) {
             g_near_mem = (char*)VirtualAlloc(search, NEAR_SIZE, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-            search += NEAR_SIZE;
+            search += 0x1000;
         }
     }
 
@@ -58,7 +58,7 @@ void* iat_hook(LPCWSTR target, LPCSTR dll, LPCSTR func, void* hook) {
 
     // Get the PE optional header
     auto nt_header = (PIMAGE_NT_HEADERS64)(pe + ((PIMAGE_DOS_HEADER)pe)->e_lfanew);
-    auto optional_header = (PIMAGE_OPTIONAL_HEADER32)(&nt_header->OptionalHeader);
+    auto optional_header = &nt_header->OptionalHeader;
 
     // Find the dll's import descriptor
     bool found = false;

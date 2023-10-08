@@ -24,12 +24,18 @@
     <ClCompile Include="MIDI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="simd.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="patch_util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="MIDI.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="simd.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

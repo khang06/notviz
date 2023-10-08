@@ -52,6 +52,17 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             *(char**)&MIDITrack_ParseTrack_orig = base + 0x2B990;
             patch_call(base + 0x2B2B6, (void*)MIDITrack_ParseTrack);
         }
+        {
+            // Faster MIDIPos::GetNextEvent
+            *(char**)&MIDIPos_MIDIPos_orig = base + 0x2A660;
+            patch_call(base + 0x2B4B3, (void*)MIDIPos_MIDIPos);
+
+            auto GetNextEvent = IsProcessorFeaturePresent(PF_AVX2_INSTRUCTIONS_AVAILABLE) ?
+                (void*)MIDIPos_GetNextEvent<true> :
+                (void*)MIDIPos_GetNextEvent<false>;
+            patch_call(base + 0x2B4FD, GetNextEvent);
+            patch_call(base + 0x2B61F, GetNextEvent);
+        }
         break;
     }
     case DLL_THREAD_ATTACH:
