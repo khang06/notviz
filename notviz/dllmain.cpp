@@ -48,11 +48,6 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             patch_call(base + 0x16BB3, (void*)MIDI_ConnectNotes);
         }
         {
-            // Don't trust the output of MIDITrack::ParseEvents
-            *(char**)&MIDITrack_ParseTrack_orig = base + 0x2B990;
-            patch_call(base + 0x2B2B6, (void*)MIDITrack_ParseTrack);
-        }
-        {
             // Faster MIDIPos::GetNextEvent
             *(char**)&MIDIPos_MIDIPos_orig = base + 0x2A660;
             patch_call(base + 0x2B4B3, (void*)MIDIPos_MIDIPos);
@@ -62,6 +57,17 @@ BOOL APIENTRY DllMain( HMODULE hModule,
                 (void*)MIDIPos_GetNextEvent<false>;
             patch_call(base + 0x2B4FD, GetNextEvent);
             patch_call(base + 0x2B61F, GetNextEvent);
+        }
+        {
+            // >2GB MIDI loading
+            *(char**)&pfa_malloc = base + 0x41380;
+            *(char**)&pfa_free = base + 0x3CBC4;
+            *(char**)&sub_14000A030 = base + 0xA030;
+            *(char**)&sub_14000AC60 = base + 0xAC60;
+            *(char**)&MIDITrackInfo_AddEventInfo = base + 0x2BBB0;
+            *(char**)&MIDITrack_clear = base + 0x2B8B0;
+            *(char**)&MIDI_clear = base + 0x2AEE0;
+            patch_call(base + 0x16855, MIDI_MIDI);
         }
         break;
     }

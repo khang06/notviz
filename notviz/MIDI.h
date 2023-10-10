@@ -6,6 +6,11 @@ class MIDIEvent {
 public:
     //Event types
     enum EventType : uint32_t { ChannelEvent, MetaEvent, SysExEvent, RunningStatus };
+    static EventType DecodeEventType(int iEventCode);
+
+    //Parsing functions that load data into the instance
+    static int MakeNextEvent(const unsigned char* pcData, size_t iMaxSize, int iTrack, MIDIEvent** pOutEvent);
+    virtual int ParseEvent(const unsigned char* pcData, size_t iMaxSize) = 0;
 
     //Accessors
     EventType GetEventType() const { return m_eEventType; }
@@ -17,7 +22,6 @@ public:
     void SetAbsMicroSec(long long llAbsMicroSec) { m_llAbsMicroSec = llAbsMicroSec; }
 
 protected:
-    void* fake_vtbl;
     EventType m_eEventType;
     int m_iEventCode;
     int m_iTrack;
@@ -28,10 +32,11 @@ protected:
 
 class MIDIChannelEvent : public MIDIEvent {
 public:
-    MIDIChannelEvent() : m_pSister(nullptr), m_iSimultaneous(0) { }
+    MIDIChannelEvent() : m_pSister(nullptr), m_iSimultaneous(0), m_sLabel(nullptr) { }
 
     enum ChannelEventType : uint32_t { NoteOff = 0x8, NoteOn, NoteAftertouch, Controller, ProgramChange, ChannelAftertouch, PitchBend };
     enum InputQuality : uint32_t { OnRadar, Waiting, Missed, Ok, Good, Great, Ignore };
+    int ParseEvent(const unsigned char* pcData, size_t iMaxSize);
 
     //Accessors
     ChannelEventType GetChannelEventType() const { return m_eChannelEventType; }
@@ -53,6 +58,7 @@ public:
     unsigned char m_cParam2;
     MIDIChannelEvent* m_pSister;
     int m_iSimultaneous;
+    void* m_sLabel;
 };
 
 class MIDIMetaEvent : public MIDIEvent {
@@ -65,6 +71,7 @@ public:
         CuePoint, ChannelPrefix = 0x20, PortPrefix = 0x21, EndOfTrack = 0x2F, SetTempo = 0x51,
         SMPTEOffset = 0x54, TimeSignature = 0x58, KeySignature = 0x59, Proprietary = 0x7F
     };
+    int ParseEvent(const unsigned char* pcData, size_t iMaxSize);
 
     //Accessors
     MetaEventType GetMetaEventType() const { return m_eMetaEventType; }
@@ -77,16 +84,69 @@ private:
     unsigned char* m_pcData;
 };
 
-struct MIDITrack {
-    char pad0[0xE0];
-    MIDIEvent** m_vEventsStart;
-    MIDIEvent** m_vEventsEnd;
+class MIDISysExEvent : public MIDIEvent {
+public:
+    MIDISysExEvent() : m_pcData(0) { }
+    ~MIDISysExEvent() { if (m_pcData) delete[] m_pcData; }
+
+    int ParseEvent(const unsigned char* pcData, size_t iMaxSize);
+
+private:
+    int m_iSysExCode;
+    int m_iDataLen;
+    unsigned char* m_pcData;
+    bool m_bHasMoreData;
+    MIDISysExEvent* prevEvent;
 };
 
+struct MIDITrackInfo {
+    int iSequenceNumber;
+    uint8_t gap4[44];
+    int iMinNote;
+    int iMaxNote;
+    int iNoteCount;
+    int iEventCount;
+    int iMaxVolume;
+    int iVolumeSum;
+    int iTotalTicks;
+    uint8_t gap4C[4];
+    long long llTotalMicroSecs;
+    int aNoteCount[16];
+    int aProgram[16];
+    int iNumChannels;
+};
+
+struct MIDITrack {
+    MIDITrackInfo m_TrackInfo;
+    MIDIEvent** m_vEventsStart;
+    MIDIEvent** m_vEventsEnd;
+    MIDIEvent** m_vEventsCap;
+};
+
+struct MIDIInfo {
+    uint8_t gap0[80];
+    int iFormatType;
+    int iNumTracks;
+    int iNumChannels;
+    int iDivision;
+    int iMinNote;
+    int iMaxNote;
+    int iNoteCount;
+    int iEventCount;
+    int iMaxVolume;
+    int iVolumeSum;
+    int iTotalTicks;
+    int iTotalBeats;
+    long long llTotalMicroSecs;
+    long long llFirstNote;
+};
+
+
 struct MIDI {
-	char pad0[0x90];
+    MIDIInfo m_Info;
     MIDITrack** m_vTracksStart;
     MIDITrack** m_vTracksEnd;
+    MIDITrack** m_vTracksCap;
 };
 
 struct MIDIPos {
@@ -102,13 +162,21 @@ struct MIDIPos {
     int m_iCurrMicroSec;
 };
 
-void __fastcall MIDI_ConnectNotes(MIDI* midi);
+extern void*(__fastcall* pfa_malloc)(size_t);
+extern void(__fastcall* pfa_free)(void*);
 
-extern int(__fastcall* MIDITrack_ParseTrack_orig)(MIDITrack*, const unsigned char*, int, int);
-int __fastcall MIDITrack_ParseTrack(MIDITrack* track, const unsigned char* pcData, int iMaxSize, int iTrack);
+void __fastcall MIDI_ConnectNotes(MIDI* midi);
 
 template<bool AVX>
 int __fastcall MIDIPos_GetNextEvent(MIDIPos* midiPos, MIDIEvent** pOutEvent);
 
 extern void(__fastcall* MIDIPos_MIDIPos_orig)(MIDIPos*, MIDI*);
 void __fastcall MIDIPos_MIDIPos(MIDIPos* midiPos, MIDI* midi);
+
+extern void(__fastcall* sub_14000A030)(void*, void*, uint64_t, uint64_t);
+extern void(__fastcall* sub_14000AC60)(void*);
+extern void(__fastcall* MIDITrackInfo_AddEventInfo)(MIDITrackInfo*, MIDIEvent*);
+extern void(__fastcall* MIDITrack_clear)(MIDITrack*);
+extern void(__fastcall* MIDI_clear)(MIDI*);
+
+MIDI* __fastcall MIDI_MIDI(MIDI* midi, uint64_t* sFilename);
