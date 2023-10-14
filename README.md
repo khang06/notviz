@@ -4,3 +4,4 @@ This ports over some of the [pfavizkhang](https://github.com/khang06/PianoFromAb
 ## Ported features
 * Faster loading for MIDIs with lots of overlapping notes
 * Properly loads some corrupt MIDIs (e.g. NF53.1MIL.mid)
+* Support for MIDIs over 2GB
